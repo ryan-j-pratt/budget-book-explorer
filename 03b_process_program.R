@@ -7,10 +7,10 @@ process_program <- function() {
   
   col_names <- c(
     "item",
-    "offset_3",
-    "offset_2",
-    "offset_1",
-    "offset_0"
+    "offset_years_3",
+    "offset_years_2",
+    "offset_years_1",
+    "offset_years_0"
   )
   
   program_extracted <- program_pages |>
@@ -39,15 +39,15 @@ process_program <- function() {
   
   program_long <- program_extracted |>
     pivot_longer(
-      cols = starts_with("offset_"),
-      names_to = "offset",
-      names_pattern = "offset_(\\d)",
+      cols = starts_with("offset_years_"),
+      names_to = "offset_years",
+      names_pattern = "offset_years_(\\d)",
       values_to = "amount"
     )
   
   program_hashed <- program_long |> 
     mutate(
-      key_string = paste0(pdf_filename, pdf_page, book_year, offset, dept_id_root, dept_id, flag_personnel),
+      key_string = paste0(pdf_filename, pdf_page, book_year, offset_years, dept_id_root, dept_id, flag_personnel),
       row_id = map_chr(key_string, ~digest(.x, algo = "xxh3_64"))
     )
   
@@ -57,7 +57,7 @@ process_program <- function() {
       pdf_filename,
       pdf_page,
       book_year,
-      offset,
+      offset_years,
       dept_id_root,
       dept_id,
       flag_personnel,
@@ -65,7 +65,7 @@ process_program <- function() {
     ) |> 
     mutate(
       book_year = as.integer(book_year),
-      offset = as.integer(offset),
+      offset_years = as.integer(offset_years),
       dept_id_root = as.integer(dept_id_root),
       dept_id = as.integer(dept_id),
       flag_personnel = as.integer(flag_personnel),
@@ -79,6 +79,6 @@ process_program <- function() {
   program_patched <- program_parsed |>
     rows_update(program_patch)
   
-  write_parquet(program_parsed, file.path(clean_path, "program.parquet"))
+  write_parquet(program_patched, file.path(clean_path, "stg/program_history.parquet"))
   
 }

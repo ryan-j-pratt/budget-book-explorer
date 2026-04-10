@@ -8,10 +8,10 @@ process_approp_account <- function() {
   col_names <- c(
     "approp_account",
     "description",
-    "offset_3",
-    "offset_2",
-    "offset_1",
-    "offset_0",
+    "offset_years_3",
+    "offset_years_2",
+    "offset_years_1",
+    "offset_years_0",
     "delta"
   )
   
@@ -29,9 +29,9 @@ process_approp_account <- function() {
     # Drop delta here because we can recalculate it
     select(-c(delta)) |> 
     pivot_longer(
-      cols = starts_with("offset_"),
-      names_to = "offset",
-      names_pattern = "offset_(\\d)",
+      cols = starts_with("offset_years_"),
+      names_to = "offset_years",
+      names_pattern = "offset_years_(\\d)",
       values_to = "amount"
     )
   
@@ -39,7 +39,7 @@ process_approp_account <- function() {
   
   approp_account_hashed <- approp_account_long |> 
     mutate(
-      key_string = paste0(pdf_filename, pdf_page, book_year, offset, dept_id_root, approp_account),
+      key_string = paste0(pdf_filename, pdf_page, book_year, offset_years, dept_id_root, approp_account),
       row_id = map_chr(key_string, ~digest(.x, algo = "xxh3_64"))
     )
   
@@ -53,14 +53,14 @@ process_approp_account <- function() {
       pdf_filename,
       pdf_page,
       book_year,
-      offset,
+      offset_years,
       dept_id_root,
       approp_account,
       amount
     ) |> 
     mutate(
       book_year = as.integer(book_year),
-      offset = as.integer(offset),
+      offset_years = as.integer(offset_years),
       dept_id_root = as.integer(dept_id_root),
       approp_account = as.integer(approp_account),
       amount = str_replace_all(amount, "^\\((.*)\\)$", "-\\1"),
@@ -73,6 +73,6 @@ process_approp_account <- function() {
   approp_account_patched <- approp_account_parsed |> 
     rows_update(approp_account_patch)
   
-  write_parquet(approp_account_patched, file.path(clean_path, "approp_account.parquet"))
+  write_parquet(approp_account_patched, file.path(clean_path, "stg/approp_account_history.parquet"))
   
 }

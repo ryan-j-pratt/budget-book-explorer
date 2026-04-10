@@ -21,3 +21,20 @@ pdf_path <- file.path(data_root, "Budget Book PDFs")
 manual_path <- file.path(data_root, "Manual")
 intermediate_path <- file.path(data_root, "Intermediate")
 clean_path <- file.path(data_root, "Budget Data")
+
+con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+
+scripts <- list.files(repo_root, "^(0[1-9]|[1-9][0-9]).*\\.R$")
+
+walk(scripts, source)
+
+load_pdf()
+tag_and_label_raw()
+process_approp_account()
+process_program()
+load_dim_tables()
+create_tables()
+clean_tables()
+save_tables()
+
+dbDisconnect(con, shutdown = TRUE)

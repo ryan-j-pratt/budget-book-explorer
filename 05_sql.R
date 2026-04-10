@@ -1,103 +1,207 @@
 
-con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+create_tables <- function() {
+  
+  create_table <- function(name) {
+    file_path <- path.expand(file.path(clean_path, "stg", glue("{name}.parquet")))
+    
+    view_name <- glue("cc_stg_{name}")
+    
+    statement <- glue("
+      CREATE OR REPLACE VIEW {view_name} AS
+        SELECT *
+        FROM read_parquet('{file_path}');
+    ")
+    
+    dbExecute(con, statement)
+  }
+  
+  tables <- c(
+    "approp_account_history",
+    "program_history",
+    "dept_id_labels",
+    "approp_account_labels"
+  )
+  
+  walk(tables, create_table)
+}
 
-approp_account_path <- path.expand(file.path(clean_path, 'approp_account.parquet'))
-program_path <- path.expand(file.path(clean_path, 'program.parquet'))
 
-approp_account_query <- glue("
-WITH base AS (
-    SELECT 
+clean_tables <- function() {
+  
+  non_discretionary <- paste(
+    c(
+      101,
+      139,
+      148,
+      158,
+      159,
+      199,
+      331,
+      333,
+      341,
+      374,
+      749,
+      999
+    ), 
+  collapse = ", "
+  )
+  
+  statement_approp_account <- glue("
+    CREATE OR REPLACE VIEW cc_budget_approp_account_history AS
+    WITH base AS (
+      SELECT 
         row_id,
         pdf_filename,
         pdf_page,
         book_year,
-        \"offset\",
-        (book_year - \"offset\") AS fy,
+        offset_years,
+        (book_year - offset_years) AS fy,
         dept_id_root,
         CAST(SUBSTRING(CAST(approp_account AS VARCHAR), 1, 2) AS INTEGER) AS approp_account_category,
         CASE
-            WHEN approp_account_category = 51 THEN 1
-            ELSE 0
+          WHEN approp_account_category = 51 THEN 1
+          ELSE 0
         END AS flag_personnel,
         approp_account,
         amount,
         CASE 
-            WHEN \"offset\" >= 2 THEN 1
-            WHEN \"offset\" = 1 THEN 2
-            WHEN \"offset\" = 0 THEN 3
+          WHEN offset_years >= 2 THEN 1
+          WHEN offset_years = 1 THEN 2
+          WHEN offset_years = 0 THEN 3
         END AS quality_score
-    FROM read_parquet('{approp_account_path}')
-),
-
-deduped AS (
-    SELECT *
-    FROM base
-    QUALIFY ROW_NUMBER() OVER (
+      FROM cc_stg_approp_account_history
+    ),
+    
+    deduped AS (
+      SELECT *
+      FROM base
+      QUALIFY ROW_NUMBER() OVER (
         PARTITION BY fy, dept_id_root, approp_account 
         ORDER BY book_year DESC, quality_score ASC, pdf_page DESC
-    ) = 1
-)
-
-SELECT 
-    fy,
-    dept_id_root,
-    flag_personnel,
-    approp_account_category,
-    approp_account,
-    amount,
-    pdf_filename,
-    pdf_page,
-    row_id
-FROM deduped
-WHERE amount > 0;
-")
-
-program_query <- glue("
-WITH base AS (
+      ) = 1
+    )
+  
     SELECT 
+      fy,
+      dept_id_root,
+      flag_personnel,
+      approp_account_category,
+      approp_account,
+      amount,
+      pdf_filename,
+      pdf_page,
+      row_id
+    FROM deduped
+    WHERE amount > 0 AND fy >= 2017 AND dept_id_root NOT IN ({non_discretionary});
+  ")
+  
+  statement_program <- glue("
+    CREATE OR REPLACE VIEW cc_budget_program_history AS
+    WITH base AS (
+      SELECT 
         row_id,
         pdf_filename,
         pdf_page,
         book_year,
-        \"offset\",
-        (book_year - \"offset\") AS fy,
+        offset_years,
+        (book_year - offset_years) AS fy,
         dept_id_root,
         dept_id,
         flag_personnel,
         amount,
         CASE 
-            WHEN \"offset\" >= 2 THEN 1
-            WHEN \"offset\" = 1 THEN 2
-            WHEN \"offset\" = 0 THEN 3
+          WHEN offset_years >= 2 THEN 1
+          WHEN offset_years = 1 THEN 2
+          WHEN offset_years = 0 THEN 3
         END AS quality_score
-    FROM read_parquet('{program_path}')
-),
-
-deduped AS (
-    SELECT *
-    FROM base
-    QUALIFY ROW_NUMBER() OVER (
+      FROM cc_stg_program_history
+    ),
+    
+    deduped AS (
+      SELECT *
+      FROM base
+      QUALIFY ROW_NUMBER() OVER (
         PARTITION BY fy, dept_id, flag_personnel 
         ORDER BY book_year DESC, quality_score ASC, pdf_page DESC
-    ) = 1
-)
+      ) = 1
+    )
+    
+    SELECT 
+      fy,
+      dept_id_root,
+      dept_id,
+      flag_personnel,
+      amount,
+      pdf_filename,
+      pdf_page,
+      row_id
+    FROM deduped
+    WHERE amount > 0 AND fy >= 2017  AND dept_id_root NOT IN ({non_discretionary});
+  ")
+  
+  statement_approp_account_label <- "
+    CREATE OR REPLACE VIEW cc_budget_label_approp_account AS
+      SELECT * 
+      FROM cc_stg_approp_account_labels
+  "
+  
+  statement_approp_account_category_label <- "
+    CREATE OR REPLACE VIEW cc_budget_label_approp_account_category AS
+      SELECT DISTINCT ON (approp_account_category) approp_account_category, flag_personnel,
+        approp_account_category_label, flag_personnel_label
+      FROM cc_stg_approp_account_labels
+  "
+  
+  statement_flag_personnel_label <- "
+    CREATE OR REPLACE VIEW cc_budget_label_flag_personnel AS
+      SELECT DISTINCT ON (flag_personnel) flag_personnel, flag_personnel_label
+      FROM cc_stg_approp_account_labels
+  "
+  
+  statement_dept_id_label <- "
+    CREATE OR REPLACE VIEW cc_budget_label_dept_id AS
+      SELECT *
+      FROM cc_stg_dept_id_labels
+  "
+  
+  statement_dept_id_root_label <- "
+    CREATE OR REPLACE VIEW cc_budget_label_dept_id_root AS
+      SELECT DISTINCT ON (dept_id_root) dept_id_root, dept_id_root_label
+      FROM cc_stg_dept_id_labels
+  "
 
-SELECT 
-    fy,
-    dept_id_root,
-    dept_id,
-    flag_personnel,
-    amount,
-    pdf_filename,
-    pdf_page,
-    row_id
-FROM deduped
-WHERE amount > 0;
-")
+  dbExecute(con, statement_approp_account)
+  dbExecute(con, statement_program)
+  dbExecute(con, statement_approp_account_label)
+  dbExecute(con, statement_approp_account_category_label)
+  dbExecute(con, statement_flag_personnel_label)
+  dbExecute(con, statement_dept_id_label)
+  dbExecute(con, statement_dept_id_root_label)
+  
+  #lk <- dbGetQuery(con, "SELECT * FROM cc_budget_label_approp_account")
+}
 
-
-
-clean_approp_account <- dbGetQuery(con, approp_account_query)
-clean_program <- dbGetQuery(con, program_query)
-
-dbDisconnect(con, shutdown = TRUE)
+save_tables <- function() {
+  
+  save_table <- function(name) {
+    file_path <- path.expand(file.path(clean_path, "prod", glue("{name}.parquet")))
+    
+    statement <- glue("
+      COPY {name} TO '{file_path}' (FORMAT parquet);
+    ")
+    
+    dbExecute(con, statement)
+  }
+  
+  tables <- c(
+    "cc_budget_approp_account_history",
+    "cc_budget_program_history",
+    "cc_budget_label_approp_account",
+    "cc_budget_label_approp_account_category",
+    "cc_budget_label_flag_personnel",
+    "cc_budget_label_dept_id",
+    "cc_budget_label_dept_id_root"
+  )
+  
+  walk(tables, save_table)
+}

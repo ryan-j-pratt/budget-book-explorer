@@ -18,6 +18,7 @@ create_tables <- function() {
   tables <- c(
     "approp_account_history",
     "program_history",
+    "non_discretionary_history",
     "dept_id_labels",
     "approp_account_labels"
   )
@@ -139,6 +140,46 @@ clean_tables <- function() {
     WHERE amount > 0 AND fy >= 2017  AND dept_id_root NOT IN ({non_discretionary});
   ")
   
+  statement_non_discretionary <- glue("
+    CREATE OR REPLACE VIEW cc_budget_non_discretionary_history AS
+    WITH base AS (
+      SELECT 
+        row_id,
+        pdf_filename,
+        pdf_page,
+        book_year,
+        offset_years,
+        (book_year - offset_years) AS fy,
+        dept_id_root,
+        amount,
+        CASE 
+          WHEN offset_years >= 2 THEN 1
+          WHEN offset_years = 1 THEN 2
+          WHEN offset_years = 0 THEN 3
+        END AS quality_score
+      FROM cc_stg_non_discretionary_history
+    ),
+    
+    deduped AS (
+      SELECT *
+      FROM base
+      QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY fy, dept_id_root
+        ORDER BY book_year DESC, quality_score ASC, pdf_page DESC
+      ) = 1
+    )
+    
+    SELECT 
+      fy,
+      dept_id_root,
+      amount,
+      pdf_filename,
+      pdf_page,
+      row_id
+    FROM deduped
+    WHERE amount > 0 AND fy >= 2017;
+  ")
+  
   statement_approp_account_label <- "
     CREATE OR REPLACE VIEW cc_budget_label_approp_account AS
       SELECT * 
@@ -172,6 +213,7 @@ clean_tables <- function() {
 
   dbExecute(con, statement_approp_account)
   dbExecute(con, statement_program)
+  dbExecute(con, statement_non_discretionary)
   dbExecute(con, statement_approp_account_label)
   dbExecute(con, statement_approp_account_category_label)
   dbExecute(con, statement_flag_personnel_label)
@@ -196,6 +238,7 @@ save_tables <- function() {
   tables <- c(
     "cc_budget_approp_account_history",
     "cc_budget_program_history",
+    "cc_budget_non_discretionary_history",
     "cc_budget_label_approp_account",
     "cc_budget_label_approp_account_category",
     "cc_budget_label_flag_personnel",

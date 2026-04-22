@@ -32,7 +32,7 @@ load_dim_tables <- function() {
     mutate(
       dept_id_root = as.integer(substr(as.character(dept_id), 1, 3))
     ) |> 
-    left_join(dept_id_root_label, by = "dept_id_root") |> 
+    full_join(dept_id_root_label, by = "dept_id_root") |> 
     select(
       dept_id,
       dept_id_root,

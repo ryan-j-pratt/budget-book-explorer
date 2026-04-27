@@ -46,6 +46,10 @@ process_personnel <- function() {
       position,
       salary
     ) |> 
+    # Rename to play nice with SQL
+    rename(
+      union_affiliation = union
+    ) |> 
     mutate(
       book_year = as.integer(book_year),
       dept_id_root = as.integer(dept_id_root),
@@ -98,4 +102,6 @@ process_personnel <- function() {
       adj_amount = parse_number(adj_amount)
     )
   
+  write_parquet(personnel_parsed, file.path(clean_path, "stg/personnel_history.parquet"))
+  write_parquet(adj_parsed, file.path(clean_path, "stg/personnel_adj_history.parquet"))
 }

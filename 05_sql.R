@@ -19,6 +19,8 @@ create_tables <- function() {
     "approp_account_history",
     "program_history",
     "non_discretionary_history",
+    "personnel_history",
+    "personnel_adj_history",
     "dept_id_labels",
     "approp_account_labels"
   )
@@ -93,7 +95,7 @@ clean_tables <- function() {
       pdf_page,
       row_id
     FROM deduped
-    WHERE amount > 0 AND fy >= 2017 AND dept_id_root NOT IN ({non_discretionary});
+    WHERE amount > 0 AND dept_id_root NOT IN ({non_discretionary});
   ")
   
   statement_program <- glue("
@@ -137,7 +139,7 @@ clean_tables <- function() {
       pdf_page,
       row_id
     FROM deduped
-    WHERE amount > 0 AND fy >= 2017  AND dept_id_root NOT IN ({non_discretionary});
+    WHERE amount > 0  AND dept_id_root NOT IN ({non_discretionary});
   ")
   
   statement_non_discretionary <- glue("
@@ -177,8 +179,38 @@ clean_tables <- function() {
       pdf_page,
       row_id
     FROM deduped
-    WHERE amount > 0 AND fy >= 2017;
+    WHERE amount > 0;
   ")
+  
+  statement_personnel <- "
+    CREATE OR REPLACE VIEW cc_budget_personnel_history AS
+      SELECT 
+        row_id,
+        pdf_filename,
+        pdf_page,
+        book_year AS fy,
+        dept_id_root,
+        title,
+        union_affiliation,
+        grade,
+        position,
+        salary,
+        (salary / position) AS avg_salary_pp
+      FROM cc_stg_personnel_history;
+  "
+  
+  statement_personnel_adj <- "
+    CREATE OR REPLACE VIEW cc_budget_personnel_adj_history AS
+      SELECT
+        row_id,
+        pdf_filename,
+        pdf_page,
+        book_year AS fy,
+        dept_id_root,
+        adj_type,
+        adj_amount
+      FROM cc_stg_personnel_adj_history;
+  "
   
   statement_approp_account_label <- "
     CREATE OR REPLACE VIEW cc_budget_label_approp_account AS
@@ -229,7 +261,7 @@ clean_tables <- function() {
         CASE WHEN offset_years IN (0, 1) THEN 'target' ELSE 'history' END AS val_type,
         row_id
       FROM cc_stg_approp_account_history
-      WHERE (book_year - offset_years) >= 2017
+      WHERE (book_year - offset_years) >= 2020
         AND dept_id_root NOT IN ({non_discretionary})
     ),
     best_budget AS (
@@ -270,6 +302,8 @@ clean_tables <- function() {
   dbExecute(con, statement_approp_account)
   dbExecute(con, statement_program)
   dbExecute(con, statement_non_discretionary)
+  dbExecute(con, statement_personnel)
+  dbExecute(con, statement_personnel_adj)
   dbExecute(con, statement_approp_account_label)
   dbExecute(con, statement_approp_account_category_label)
   dbExecute(con, statement_flag_personnel_label)
@@ -277,7 +311,7 @@ clean_tables <- function() {
   dbExecute(con, statement_dept_id_root_label)
   dbExecute(con, statement_approp_account_variance)
   
-  #lk <- dbGetQuery(con, "SELECT * FROM cc_budget_approp_account_variance")
+  lk <- dbGetQuery(con, "SELECT * FROM cc_budget_personnel_adj_history")
 }
 
 save_tables <- function() {
@@ -289,13 +323,22 @@ save_tables <- function() {
       COPY {name} TO '{file_path}' (FORMAT parquet);
     ")
     
+    file_path_csv <- path.expand(file.path(clean_path, "prod", "csv", glue("{name}.csv")))
+    
+    statement_csv <- glue("
+      COPY {name} TO '{file_path_csv}' (HEADER, DELIMITER ',');
+    ")
+    
     dbExecute(con, statement)
+    dbExecute(con, statement_csv)
   }
   
   tables <- c(
     "cc_budget_approp_account_history",
     "cc_budget_program_history",
     "cc_budget_non_discretionary_history",
+    "cc_budget_personnel_history",
+    "cc_budget_personnel_adj_history",
     "cc_budget_label_approp_account",
     "cc_budget_label_approp_account_category",
     "cc_budget_label_flag_personnel",

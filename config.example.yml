@@ -1,0 +1,6 @@
+locations:
+  pdf_path: "path/to/pdf/"
+  manual_inputs_path: "path/to/manual_inputs/"
+  intermediate_path: "path/to/intermediate/"
+  stg_path: "path/to/stg/"
+  prod_path: "path/to/prod/"

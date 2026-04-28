@@ -11,20 +11,23 @@ library(digest)
 library(nanoparquet)
 library(DBI)
 library(duckdb)
+library(yaml)
+library(rvest)
 
 # Confirm that your wd points to the repository or modify
 repo_root <- getwd()
 
 # Create paths to data
-data_root <- file.path("~/Budgets")
-pdf_path <- file.path(data_root, "Budget Book PDFs")
-manual_path <- file.path(data_root, "Manual")
-intermediate_path <- file.path(data_root, "Intermediate")
-clean_path <- file.path(data_root, "Budget Data")
+config <- read_yaml(file.path(repo_root, "config.yml"))
+
+pdf_path <- config$locations$pdf_path
+manual_path <- config$locations$manual_inputs_path
+intermediate_path <- config$locations$interemdiate_path
+clean_path <- config$locations$stg_path
 
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
-scripts <- list.files(repo_root, "^(0[1-9]|[1-9][0-9]).*\\.R$")
+scripts <- list.files(file.path(repo_root, "R"), "^(0[1-9]|[1-9][0-9]).*\\.R$", full.names = TRUE)
 
 walk(scripts, source)
 

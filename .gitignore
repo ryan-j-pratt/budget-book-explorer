@@ -1,6 +1,8 @@
 # PROJECT SPECIFIC
 ## Scratch folder
 scratch/
+## Config (leave example)
+config.yml
 
 # History files
 .Rhistory

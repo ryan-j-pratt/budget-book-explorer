@@ -22,7 +22,7 @@ config <- read_yaml(file.path(repo_root, "config.yml"))
 
 pdf_path <- config$locations$pdf_path
 manual_path <- config$locations$manual_inputs_path
-intermediate_path <- config$locations$interemdiate_path
+intermediate_path <- config$locations$intermediate_path
 clean_path <- config$locations$stg_path
 
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")

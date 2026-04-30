@@ -79,6 +79,6 @@ process_program <- function() {
   program_patched <- program_parsed |>
     rows_update(program_patch)
   
-  write_parquet(program_patched, file.path(clean_path, "stg/program_history.parquet"))
+  write_parquet(program_patched, file.path(clean_path, "program_history.parquet"))
   
 }

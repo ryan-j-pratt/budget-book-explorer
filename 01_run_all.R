@@ -25,7 +25,7 @@ manual_path <- config$locations$manual_inputs_path
 intermediate_path <- config$locations$intermediate_path
 clean_path <- config$locations$stg_path
 
-con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
+#con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
 scripts <- list.files(file.path(repo_root, "R"), "^(0[1-9]|[1-9][0-9]).*\\.R$", full.names = TRUE)
 
@@ -38,8 +38,8 @@ process_program()
 process_non_discretionary()
 process_personnel()
 load_dim_tables()
-create_tables()
-clean_tables()
-save_tables()
+#create_tables()
+#clean_tables()
+#save_tables()
 
-dbDisconnect(con, shutdown = TRUE)
+#dbDisconnect(con, shutdown = TRUE)

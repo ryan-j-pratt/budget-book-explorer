@@ -82,7 +82,7 @@ process_non_discretionary <- function() {
       amount = parse_number(amount)
     )
   
-  write_parquet(non_discretionary_parsed, file.path(clean_path, "stg/non_discretionary_history.parquet"))
+  write_parquet(non_discretionary_parsed, file.path(clean_path, "non_discretionary_history.parquet"))
   
 }
 

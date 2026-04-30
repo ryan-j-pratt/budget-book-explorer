@@ -102,6 +102,6 @@ process_personnel <- function() {
       adj_amount = parse_number(adj_amount)
     )
   
-  write_parquet(personnel_parsed, file.path(clean_path, "stg/personnel_history.parquet"))
-  write_parquet(adj_parsed, file.path(clean_path, "stg/personnel_adj_history.parquet"))
+  write_parquet(personnel_parsed, file.path(clean_path, "personnel_history.parquet"))
+  write_parquet(adj_parsed, file.path(clean_path, "personnel_adj_history.parquet"))
 }

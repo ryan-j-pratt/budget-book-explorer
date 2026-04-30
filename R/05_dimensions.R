@@ -26,7 +26,7 @@ load_dim_tables <- function() {
       flag_personnel_label
     )
   
-  write_parquet(approp_account_labels, file.path(clean_path, "stg", "approp_account_labels.parquet"))
+  write_parquet(approp_account_labels, file.path(clean_path, "approp_account_labels.parquet"))
   
   dept_id_labels <- dept_id_label |>
     mutate(
@@ -40,7 +40,7 @@ load_dim_tables <- function() {
       dept_id_root_label
     )
   
-  write_parquet(dept_id_labels, file.path(clean_path, "stg", "dept_id_labels.parquet")) 
+  write_parquet(dept_id_labels, file.path(clean_path, "dept_id_labels.parquet")) 
 }
   
 

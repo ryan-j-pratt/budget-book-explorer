@@ -73,6 +73,6 @@ process_approp_account <- function() {
   approp_account_patched <- approp_account_parsed |> 
     rows_update(approp_account_patch)
   
-  write_parquet(approp_account_patched, file.path(clean_path, "stg/approp_account_history.parquet"))
+  write_parquet(approp_account_patched, file.path(clean_path, "approp_account_history.parquet"))
   
 }
